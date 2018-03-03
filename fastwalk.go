@@ -64,7 +64,7 @@ func walk(path string, info *INode, walkFn WalkFunc) error {
 	if err != nil || err1 != nil {
 		// The caller's behavior is controlled by the return value, which is decided
 		// by walkFn. walkFn may ignore err and return nil.
-		// If walkFn returns SkipDir, it will be handled by the caller.
+		// If walkFn returns filepath.SkipDir, it will be handled by the caller.
 		// So walk should return whatever walkFn returns.
 		return err1
 	}

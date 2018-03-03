@@ -1,6 +1,7 @@
 package fastwalk
 
 import (
+	"path/filepath"
 	"testing"
 )
 
@@ -23,7 +24,7 @@ func TestFastwalk(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Error(`Error while walking validRoot: `, err.Error()) // add message
+		t.Error(`Error while walking validRoot: `, err.Error())
 		return
 	}
 	if actualChildCount != expectedChildCount {
@@ -36,6 +37,18 @@ func TestFastwalkInvalidRoot(t *testing.T) {
 		return err
 	})
 	if err == nil {
-		t.Errorf("Invalid root turned out to be valid afterall... InvalidRoot=\"%s\"", invalidRoot) // add message
+		t.Errorf("Invalid root turned out to be valid afterall... InvalidRoot=\"%s\"", invalidRoot)
+	}
+}
+
+func TestFastwalkSkipDir(t *testing.T) {
+	err := Fastwalk(validRoot, func(path string, info *INode, err error) error {
+		return filepath.SkipDir
+	})
+	if err != nil {
+		if err == filepath.SkipDir {
+			return
+		}
+		t.Error(`An unexpected error occurred: `, err.Error())
 	}
 }
