@@ -8,8 +8,12 @@ import (
 // INode is a stripped-down representation of a named path. INode replaces os.FileInfo
 // for representing a file/directory.
 type INode struct {
-	isDir bool
-	name  string
+	Mode os.FileMode
+	Name string
+}
+
+func (i *INode) isDir() bool {
+	return i.Mode&os.ModeDir == os.ModeDir
 }
 
 // WalkFunc is the type of the function called for each file or directory
@@ -35,13 +39,13 @@ type WalkFunc func(path string, info *INode, err error) error
 // a file (i.e. no os.FileInfo).
 // Walk does not follow symbolic links.
 func Fastwalk(root string, walkFn WalkFunc) error {
-	info, err := os.Lstat(root)
+	fi, err := os.Lstat(root)
 	if err != nil {
 		err = walkFn(root, nil, err)
 	} else {
 		rootINode := &INode{
-			info.IsDir(),
-			info.Name(),
+			fi.Mode(),
+			fi.Name(),
 		}
 		err = walk(root, rootINode, walkFn)
 	}
@@ -52,7 +56,7 @@ func Fastwalk(root string, walkFn WalkFunc) error {
 }
 
 func walk(path string, info *INode, walkFn WalkFunc) error {
-	if !info.isDir {
+	if !info.isDir() {
 		return walkFn(path, info, nil)
 	}
 
@@ -77,11 +81,11 @@ func walk(path string, info *INode, walkFn WalkFunc) error {
 				return err
 			}
 		} else {
-			info.isDir = fileInfo.IsDir()
-			info.name = fileInfo.Name()
+			info.Mode = fileInfo.Mode()
+			info.Name = fileInfo.Name()
 			err = walk(filename, info, walkFn)
 			if err != nil {
-				if !info.isDir || err != filepath.SkipDir {
+				if !info.isDir() || err != filepath.SkipDir {
 					return err
 				}
 			}

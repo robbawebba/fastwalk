@@ -17,7 +17,7 @@ func TestFastwalk(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if !info.isDir {
+		if !info.isDir() {
 			actualChildCount++
 			return nil
 		}
