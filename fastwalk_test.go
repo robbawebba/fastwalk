@@ -1,6 +1,7 @@
 package fastwalk
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -19,7 +20,6 @@ func TestFastwalk(t *testing.T) {
 		}
 		if !info.isDir() {
 			actualChildCount++
-			return nil
 		}
 		return nil
 	})
@@ -50,5 +50,53 @@ func TestFastwalkSkipDir(t *testing.T) {
 			return
 		}
 		t.Error(`An unexpected error occurred: `, err.Error())
+	}
+}
+
+func BenchmarkFilepathWalk(b *testing.B) {
+	var fileCount, dirCount int
+
+	benchmarkWalkFunc := func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			dirCount++
+		} else {
+			fileCount++
+		}
+		return nil
+	}
+
+	for n := 0; n < b.N; n++ {
+		fileCount, dirCount = 0, 0
+		err := filepath.Walk(validRoot, benchmarkWalkFunc)
+		if err != nil {
+			b.Error(err.Error())
+		}
+	}
+}
+
+func BenchmarkFastwalk(b *testing.B) {
+	var fileCount, dirCount int
+
+	benchmarkWalkFunc := func(path string, info *INode, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.isDir() { // TODO: export isDir function
+			dirCount++
+		} else {
+			fileCount++
+		}
+		return nil
+	}
+
+	for n := 0; n < b.N; n++ {
+		fileCount, dirCount = 0, 0
+		err := Fastwalk(validRoot, benchmarkWalkFunc)
+		if err != nil {
+			b.Error(err.Error())
+		}
 	}
 }

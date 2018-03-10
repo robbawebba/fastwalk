@@ -17,7 +17,7 @@ import (
 // )
 //
 const (
-	blockSize = 4096 // TODO: calculate page size instead
+	blockSize = 4096 // TODO: calculate block size instead
 )
 
 //
