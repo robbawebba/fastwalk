@@ -60,7 +60,7 @@ func walk(path string, info *INode, walkFn WalkFunc) error {
 		return walkFn(path, info, nil)
 	}
 
-	names, err := readDirNames(path)
+	nodes, err := readdir(path)
 	err1 := walkFn(path, info, err)
 	// If err != nil, walk can't walk into this directory.
 	// err1 != nil means walkFn wants walk to skip this directory or stop walking.
@@ -73,21 +73,12 @@ func walk(path string, info *INode, walkFn WalkFunc) error {
 		return err1
 	}
 
-	for _, name := range names {
-		filename := filepath.Join(path, name)
-		fileInfo, err := os.Lstat(filename)
+	for _, node := range nodes {
+		filename := filepath.Join(path, node.Name)
+		err = walk(filename, node, walkFn)
 		if err != nil {
-			if err = walkFn(filename, info, err); err != nil && err != filepath.SkipDir {
+			if !node.isDir() || err != filepath.SkipDir {
 				return err
-			}
-		} else {
-			info.Mode = fileInfo.Mode()
-			info.Name = fileInfo.Name()
-			err = walk(filename, info, walkFn)
-			if err != nil {
-				if !info.isDir() || err != filepath.SkipDir {
-					return err
-				}
 			}
 		}
 	}

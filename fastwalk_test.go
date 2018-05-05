@@ -1,8 +1,10 @@
 package fastwalk
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -10,6 +12,8 @@ var (
 	validRoot   = "testDirs"
 	invalidRoot = " "
 )
+
+var benchDir = flag.String("benchdir", runtime.GOROOT(), "The directory to walk for benchmarking testing")
 
 func TestFastwalk(t *testing.T) {
 	actualChildCount := 0
@@ -70,7 +74,7 @@ func BenchmarkFilepathWalk(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		fileCount, dirCount = 0, 0
-		err := filepath.Walk(validRoot, benchmarkWalkFunc)
+		err := filepath.Walk(*benchDir, benchmarkWalkFunc)
 		if err != nil {
 			b.Error(err.Error())
 		}
@@ -94,7 +98,7 @@ func BenchmarkFastwalk(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		fileCount, dirCount = 0, 0
-		err := Fastwalk(validRoot, benchmarkWalkFunc)
+		err := Fastwalk(*benchDir, benchmarkWalkFunc)
 		if err != nil {
 			b.Error(err.Error())
 		}

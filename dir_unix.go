@@ -3,6 +3,7 @@
 package fastwalk
 
 import (
+	"bytes"
 	"os"
 	"runtime"
 	"syscall"
@@ -21,7 +22,7 @@ const (
 )
 
 //
-func (info *INode) readdir(path string) ([]*INode, error) {
+func readdir(path string) ([]*INode, error) {
 	f, err := os.Open(path) // consider syscall.Open for just getting fd
 	if err != nil {
 		return nil, err
@@ -33,7 +34,7 @@ func (info *INode) readdir(path string) ([]*INode, error) {
 
 	fd := int(f.Fd())
 
-	buf := make([]byte, blockSize)
+	buf := make([]byte, blockSize*2)
 	for {
 		buflen, err := syscall.ReadDirent(fd, buf)
 		runtime.KeepAlive(f) // see KeepAlive godoc for an explanation
@@ -45,20 +46,22 @@ func (info *INode) readdir(path string) ([]*INode, error) {
 			break
 		}
 
-		for len(buf[:buflen]) > 0 { // this might not be a safe way of accessing the buffer
+		filledBuf := buf[:buflen]
+		for len(filledBuf) > 0 {
+			// this might not be a safe way of accessing the buffer
 			// This stuff might be safer? (don't pay any attention to all the "unsafe" uses)
-			/*
-				      reclenOffset := unsafe.Offsetof(dirent.Reclen)
-							reclenSize := unsafe.Sizeof(dirent.Reclen)
-
-							reclen, _ := binary.Varint(buf[reclenOffset:reclenSize])
-							if n != reclenSize {
-								// error? reclen did not consume all of reclen.size (we we're expecting a full int)
-							}
-			*/
-			dirent = (*syscall.Dirent)(unsafe.Pointer(&buf[0])) // point entry to first syscall.Dirent in buffer
-			buf = buf[dirent.Reclen:]                           // reset buffer
-			var node *INode
+			// /*
+			// 	      reclenOffset := unsafe.Offsetof(dirent.Reclen)
+			// 				reclenSize := unsafe.Sizeof(dirent.Reclen)
+			//
+			// 				reclen, _ := binary.Varint(buf[reclenOffset:reclenSize])
+			// 				if n != reclenSize {
+			// 					// error? reclen did not consume all of reclen.size (we we're expecting a full int)
+			// 				}
+			// */
+			dirent = (*syscall.Dirent)(unsafe.Pointer(&filledBuf[0])) // point entry to first syscall.Dirent in buffer
+			filledBuf = filledBuf[dirent.Reclen:]                     // reset buffer
+			node := &INode{}
 			switch dirent.Type {
 			case syscall.DT_DIR:
 				node.Mode = os.ModeDir
@@ -73,11 +76,28 @@ func (info *INode) readdir(path string) ([]*INode, error) {
 			case syscall.DT_SOCK:
 				node.Mode = os.ModeSocket
 			case syscall.DT_REG:
+				// a regular file. node.Mode&os.ModeType will be 0
 			default:
 				// handle default, probably just do os.Stat
 			}
+
+			nameBuf := (*[unsafe.Sizeof(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]))
+			nameLen := bytes.IndexByte(nameBuf[:], 0)
+			if nameLen < 0 {
+				panic("failed to find terminating 0 byte in dirent")
+			}
+			// Special cases for common things:
+			if nameLen == 1 && nameBuf[0] == '.' || nameLen == 2 && nameBuf[0] == '.' && nameBuf[1] == '.' {
+				continue
+			}
+
+			node.Name = string(nameBuf[:nameLen])
 			nodes = append(nodes, node)
 		}
+	}
+
+	if err = f.Close(); err != nil {
+		return nil, err
 	}
 
 	return nodes, nil
