@@ -1,4 +1,4 @@
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build linux darwin freebsd netbsd openbsd
 
 package fastwalk
 
@@ -10,13 +10,6 @@ import (
 	"unsafe"
 )
 
-// import (
-// 	"io"
-// 	"os"
-// 	"runtime"
-// 	"syscall"
-// )
-//
 const (
 	blockSize = 4096 // TODO: calculate block size instead
 )
@@ -34,13 +27,13 @@ func readdir(path string) ([]*INode, error) {
 
 	fd := int(f.Fd())
 
-	buf := make([]byte, blockSize*2)
+	buf := make([]byte, blockSize)
 	for {
 		buflen, err := syscall.ReadDirent(fd, buf)
-		runtime.KeepAlive(f) // see KeepAlive godoc for an explanation
 		if err != nil {
 			return nil, err
 		}
+		runtime.KeepAlive(f) // see KeepAlive godoc for an explanation
 
 		if buflen <= 0 { // nothing to read
 			break
@@ -86,7 +79,7 @@ func readdir(path string) ([]*INode, error) {
 			if nameLen < 0 {
 				panic("failed to find terminating 0 byte in dirent")
 			}
-			// Special cases for common things:
+			// Special cases for `.`` & `..` entries:
 			if nameLen == 1 && nameBuf[0] == '.' || nameLen == 2 && nameBuf[0] == '.' && nameBuf[1] == '.' {
 				continue
 			}
@@ -102,73 +95,3 @@ func readdir(path string) ([]*INode, error) {
 
 	return nodes, nil
 }
-
-// 	dirname := info.Name
-// 	if dirname == "" {
-// 		dirname = "."
-// 	}
-// 	names, err := info.Readdirnames(n)
-// 	nodes = make([]INode, 0, len(names))
-// 	for _, filename := range names {
-// 		fip, lerr := os.Lstat(dirname + "/" + filename)
-// 		if os.IsNotExist(lerr) {
-// 			// File disappeared between readdir + stat.
-// 			// Just treat it as if it didn't exist.
-// 			continue
-// 		}
-// 		if lerr != nil {
-// 			return nodes, lerr
-// 		}
-//     fi
-// 		nodes = append(nodes, fip)
-// 	}
-// 	if len(fi) == 0 && err == nil && n > 0 {
-// 		// Per File.Readdir, the slice must be non-empty or err
-// 		// must be non-nil if n > 0.
-// 		err = io.EOF
-// 	}
-// 	return fi, err
-// }
-//
-// func (info *INode) readdirnames(n int) ([]string, error) {
-// 	// If this file has no dirinfo, create one.
-// 	if f.dirinfo == nil {
-// 		f.dirinfo = new(dirInfo)
-// 		// The buffer must be at least a block long.
-// 		f.dirinfo.buf = make([]byte, blockSize)
-// 	}
-// 	d := f.dirinfo
-//
-// 	size := n
-// 	if size <= 0 {
-// 		size = 100
-// 		n = -1
-// 	}
-//
-// 	names = make([]string, 0, size) // Empty with room to grow.
-// 	for n != 0 {
-// 		// Refill the buffer if necessary
-// 		if d.bufp >= d.nbuf {
-// 			d.bufp = 0
-// 			var errno error
-// 			d.nbuf, errno = f.pfd.ReadDirent(d.buf)
-// 			runtime.KeepAlive(f)
-// 			if errno != nil {
-// 				return names, wrapSyscallError("readdirent", errno)
-// 			}
-// 			if d.nbuf <= 0 {
-// 				break // EOF
-// 			}
-// 		}
-//
-// 		// Drain the buffer
-// 		var nb, nc int
-// 		nb, nc, names = syscall.ParseDirent(d.buf[d.bufp:d.nbuf], n, names)
-// 		d.bufp += nb
-// 		n -= nc
-// 	}
-// 	if n >= 0 && len(names) == 0 {
-// 		return names, io.EOF
-// 	}
-// 	return names, nil
-// }

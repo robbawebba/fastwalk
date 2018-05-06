@@ -12,7 +12,7 @@ type INode struct {
 	Name string
 }
 
-func (i *INode) isDir() bool {
+func (i *INode) IsDir() bool {
 	return i.Mode&os.ModeDir == os.ModeDir
 }
 
@@ -32,13 +32,13 @@ func (i *INode) isDir() bool {
 // Fastwalk skips the remaining files in the containing directory.
 type WalkFunc func(path string, info *INode, err error) error
 
-// Fastwalk walks the file tree starting at root, calling walkFn for each file or
+// Walk walks the file tree starting at root, calling walkFn for each file or
 // directory in the tree, including root. All errors that arise visiting files
 // and directories are filtered by walkFn. Unlike filepath.Walk, Fastwalk does
 // not walk the files in lexical order and does not gather all information about
 // a file (i.e. no os.FileInfo).
 // Walk does not follow symbolic links.
-func Fastwalk(root string, walkFn WalkFunc) error {
+func Walk(root string, walkFn WalkFunc) error {
 	fi, err := os.Lstat(root)
 	if err != nil {
 		err = walkFn(root, nil, err)
@@ -56,7 +56,7 @@ func Fastwalk(root string, walkFn WalkFunc) error {
 }
 
 func walk(path string, info *INode, walkFn WalkFunc) error {
-	if !info.isDir() {
+	if !info.IsDir() {
 		return walkFn(path, info, nil)
 	}
 
@@ -77,27 +77,11 @@ func walk(path string, info *INode, walkFn WalkFunc) error {
 		filename := filepath.Join(path, node.Name)
 		err = walk(filename, node, walkFn)
 		if err != nil {
-			if !node.isDir() || err != filepath.SkipDir {
+			if !node.IsDir() || err != filepath.SkipDir {
 				return err
 			}
 		}
 	}
 
 	return nil
-}
-
-// readDirNames reads the directory named by dirname and returns
-// a sorted list of directory entries.
-func readDirNames(dirname string) ([]string, error) {
-	f, err := os.Open(dirname)
-	if err != nil {
-		return nil, err
-	}
-	names, err := f.Readdirnames(-1)
-	f.Close()
-	if err != nil {
-		return nil, err
-	}
-	// sort.Strings(names) // remove, no need to sort
-	return names, nil
 }
