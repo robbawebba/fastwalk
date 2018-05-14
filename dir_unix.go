@@ -4,6 +4,7 @@ package fastwalk
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"runtime"
 	"syscall"
@@ -13,6 +14,18 @@ import (
 const (
 	blockSize = 4096 // TODO: calculate block size instead
 )
+
+// INode is a stripped-down representation of a named path. INode replaces os.FileInfo
+// for representing a file/directory.
+type INode struct {
+	Mode os.FileMode
+	Name string
+}
+
+// IsDir returns true if the receiving INode is a directory.
+func (i *INode) IsDir() bool {
+	return i.Mode&os.ModeDir == os.ModeDir
+}
 
 //
 func readdir(path string) ([]*INode, error) {
@@ -77,7 +90,7 @@ func readdir(path string) ([]*INode, error) {
 			nameBuf := (*[unsafe.Sizeof(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]))
 			nameLen := bytes.IndexByte(nameBuf[:], 0)
 			if nameLen < 0 {
-				panic("failed to find terminating 0 byte in dirent")
+				return nil, fmt.Errorf(`Unable to find terminating null character in dirent name`)
 			}
 			// Special cases for `.`` & `..` entries:
 			if nameLen == 1 && nameBuf[0] == '.' || nameLen == 2 && nameBuf[0] == '.' && nameBuf[1] == '.' {
@@ -87,10 +100,6 @@ func readdir(path string) ([]*INode, error) {
 			node.Name = string(nameBuf[:nameLen])
 			nodes = append(nodes, node)
 		}
-	}
-
-	if err = f.Close(); err != nil {
-		return nil, err
 	}
 
 	return nodes, nil

@@ -15,7 +15,7 @@ var (
 	validRoot   = "testDirs"
 	invalidRoot = " "
 	benchDir    = flag.String("benchdir", runtime.GOROOT(), "The directory to walk for benchmarking testing")
-	testErr     = errors.New(`this is a test!`)
+	errTest     = errors.New(`this is a test`)
 )
 
 func TestFastwalk(t *testing.T) {
@@ -64,9 +64,9 @@ func TestFastwalkFileError(t *testing.T) {
 		if info.IsDir() {
 			return nil
 		}
-		return testErr
+		return errTest
 	})
-	if err != testErr {
+	if err != errTest {
 		t.Error(`An unexpected error occurred: `, err.Error())
 	}
 }

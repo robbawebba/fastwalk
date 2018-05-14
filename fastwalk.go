@@ -5,22 +5,11 @@ import (
 	"path/filepath"
 )
 
-// INode is a stripped-down representation of a named path. INode replaces os.FileInfo
-// for representing a file/directory.
-type INode struct {
-	Mode os.FileMode
-	Name string
-}
-
-func (i *INode) IsDir() bool {
-	return i.Mode&os.ModeDir == os.ModeDir
-}
-
 // WalkFunc is the type of the function called for each file or directory
-// visited by Fastwalk. The path argument contains the argument to Fastwalk as a
-// prefix; that is, if Fastwalkalk is called with "dir", which is a directory
-// containing the file "a", the walk function will be called with argument
-// "dir/a". The info argument is the INode for the named path.
+// visited by Walk. The path argument is the absolute path to a file or
+// directory. For example, if info argument represents a file named "a" that
+// exists in the directory "dir", then path will be "dir/a". The info argument
+// is the INode for the named path.
 //
 // If there was a problem walking to the file or directory named by path, the
 // incoming error will describe the problem and the function can decide how
@@ -32,7 +21,7 @@ func (i *INode) IsDir() bool {
 // Fastwalk skips the remaining files in the containing directory.
 type WalkFunc func(path string, info *INode, err error) error
 
-// Walk walks the file tree starting at root, calling walkFn for each file or
+// Walk traverses the file tree depth-first starting at root, calling walkFn for each file or
 // directory in the tree, including root. All errors that arise visiting files
 // and directories are filtered by walkFn. Unlike filepath.Walk, Fastwalk does
 // not walk the files in lexical order and does not gather all information about
@@ -74,8 +63,8 @@ func walk(path string, info *INode, walkFn WalkFunc) error {
 	}
 
 	for _, node := range nodes {
-		filename := filepath.Join(path, node.Name)
-		err = walk(filename, node, walkFn)
+		fullpath := filepath.Join(path, node.Name)
+		err = walk(fullpath, node, walkFn)
 		if err != nil {
 			if !node.IsDir() || err != filepath.SkipDir {
 				return err
